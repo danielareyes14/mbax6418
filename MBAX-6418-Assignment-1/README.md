@@ -118,8 +118,8 @@ anticipation far more often than anger. The **LLM reads meaning**: it returned *
 **anger (58)** and, on the same texts, its emotions tracked the actual content (anger/sadness on
 negatives, joy on positives). So the two share vocabulary-level signals on strong/emotional words,
 but disagree anywhere the review's meaning depends on context, syntax or the disconnect between
-words and intent — which is most of real prose. The word list is a quick, cheap baseline; the LLM
-is the far more useful signal.
+words and intent — which is most of real prose. The word list provides a quick, low-cost
+baseline, while the LLM captured contextual meaning that the word-list approach could not.
 
 ### 4. Bugs and issues hit along the way, and how I worked around them
 
