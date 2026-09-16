@@ -3,23 +3,21 @@
 
 **Daniela Reyes** · University of Colorado
 
-A working reviewer-sentiment classifier for **Amazon 2023 "Gift Cards"** reviews. The
-model classifies each review as **positive / neutral / negative**, detects the review's
-**primary emotion** two independent ways (an **LLM** and an **NRC word list**), and the
-predictions are **checked against the star rating** — but the model never sees that rating.
+This model classifies each review as **positive / neutral / negative**, detects the review's
+**primary emotions**, and the predictions are **checked against the star rating** — but the
+model never sees that rating.
 
 **Data source:** Amazon Reviews '23, McAuley Lab (UC San Diego) —
 <https://amazon-reviews-2023.github.io> · category file: `review_categories/Gift_Cards.jsonl.gz`
 (152,410 gift-card reviews; the raw file is large and re-downloadable, so it is **not**
 committed — results in this report are reproducible from the scripts below).
 
-**Approach.** Classification and emotion are done by an LLM through an OpenAI-compatible
-endpoint (Hermes Agent's configured provider). A structured prompt (`prompt.py`) feeds the
-model the review's **title and text only**. The **binary** sentiment prompt returns a single
-word (`POSITIVE`/`NEGATIVE`); the **three-class** prompt returns a strict JSON answer
+**Approach:** Classification and emotion are done by an LLM through an OpenAI-compatible
+endpoint (Hermes Agent). A structured prompt (`prompt.py`) feeds the model the review's
+**title and text only**. The **binary** sentiment prompt returns a single word
+(`POSITIVE`/`NEGATIVE`); the **three-class** prompt returns a strict JSON answer
 (`sentiment` + `emotion`). The star rating is applied **afterward**, purely to score the
-predictions — it is never shown to the model. Emotion is also derived a second way from an
-**NRC emotion word list** (`nrc_emotion.py`), with no model calls.
+predictions — it is never shown to the model.
 
 ---
 
@@ -41,19 +39,13 @@ predictions — it is never shown to the model. Emotion is also derived a second
 
 ---
 
-## The dashboard
-
-`make_dashboard.py` produces a single self-contained HTML dashboard (`dashboard/`, data
-embedded as JSON — works offline, no server, no network). It shows the KPI headline numbers,
-star-rating distribution, the classification matrix, per-class accuracy, both emotion views,
-and an interactive review table filterable by **correct vs. mismatched**, by class, by emotion,
-and by free-text search.
+## The Dashboard
 
 ![Dashboard](screenshots/dashboard_screenshot.png)
 
 ---
 
-## Findings — answers to the four questions
+## Findings
 
 ### 1. Why did the lopsided run look very accurate, and what did balancing change?
 
