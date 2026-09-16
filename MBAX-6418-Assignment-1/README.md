@@ -28,23 +28,28 @@ predictions — it is never shown to the model. Emotion is also derived a second
 | File | Role |
 |---|---|
 | `01_prepare_data.py` | Load + clean the Gift-Cards review file; build the "correct answer" from the rating |
-| `prompt.py` | The reusable, structured LLM prompt (title+text → sentiment+emotion) and its JSON parser |
+| `prompt.py` | The reusable, structured LLM prompt (title+text → sentiment+emotion) and its parser |
 | `llm_classify.py` | Runs the LLM over a chosen sample; scores predictions vs. the rating; saves raw output |
 | `nrc_emotion.py` | Scores reviews against the NRC word list; compares it with the LLM emotion |
-| `make_dashboard.py` | Generates the self-contained HTML dashboard |
-| `dashboard_screenshot.png` | The dashboard, captured |
+| `spot_check.py` | Step-1 sanity check on obvious reviews |
+| `make_dashboard.py` | Generates the self-contained HTML dashboard (`dashboard/`) |
+| `first_100_results.csv` | Scored output of the lopsided first-100 binary run (Step 2) |
+| `balanced_results.csv` | Scored output of the balanced three-class run (Step 6) |
+| `raw_output/balanced_run_raw_output.jsonl` | Raw LLM answers for the balanced run (one review per line) |
+| `dashboard/Sentiment_Emotion_Dashboard.html` | The final dashboard (single file, works offline) |
+| `screenshots/dashboard_screenshot.png` | The dashboard, captured |
 
 ---
 
 ## The dashboard
 
-`make_dashboard.py` produces a single self-contained HTML dashboard (data embedded as JSON —
-works offline, no server, no network). It shows the KPI headline numbers, star-rating
-distribution, the classification matrix, per-class accuracy, both emotion views, and an
-interactive review table filterable by **correct vs. mismatched**, by class, by emotion, and
-by free-text search.
+`make_dashboard.py` produces a single self-contained HTML dashboard (`dashboard/`, data
+embedded as JSON — works offline, no server, no network). It shows the KPI headline numbers,
+star-rating distribution, the classification matrix, per-class accuracy, both emotion views,
+and an interactive review table filterable by **correct vs. mismatched**, by class, by emotion,
+and by free-text search.
 
-![Dashboard](dashboard_screenshot.png)
+![Dashboard](screenshots/dashboard_screenshot.png)
 
 ---
 
@@ -66,17 +71,17 @@ POSITIVE            1        92   98.9%   (n=93)
 
 To see the model's true behaviour I drew a **balanced** sample instead — roughly **50 of each
 class** picked at random from the whole 152k file with a **fixed seed (42)** so the same set
-reproduces. On that set agreement fell to **103/150 = 68.7%**:
+reproduces. On that set agreement fell to **104/150 = 69.3%**:
 
 ```
 true\pred     NEGATIVE  NEUTRAL  POSITIVE   hit%
 NEGATIVE           48        2         0    96%   (n=50)
 NEUTRAL            36        7         7    14%   (n=50)
-POSITIVE            1        1        48    96%   (n=50)
+POSITIVE            1        0        49    98%   (n=50)
 ```
 
-**What balancing revealed:** the headline accuracy dropped from 98% to 68.7% once the rare
-classes had an equal voice. Negative and positive are easy (96% each), but the model is far
+**What balancing revealed:** the headline accuracy dropped from 98% to 69.3% once the rare
+classes had an equal voice. Negative and positive are easy (96% / 98%), but the model is far
 weaker at neutral — the lopsided run looked excellent mostly because it barely asked the hard
 question.
 
@@ -88,7 +93,7 @@ From the balanced matrix above (rows = true class from the rating, cols = what t
 |---|---|---|---|---|
 | **1–2 ★ (NEGATIVE)** | **48** | 2 | 0 | 96% |
 | **3 ★ (NEUTRAL)** | **36** | 7 | 7 | 14% |
-| **4–5 ★ (POSITIVE)** | 1 | 1 | **48** | 96% |
+| **4–5 ★ (POSITIVE)** | 1 | 0 | **49** | 98% |
 
 - **Negative reviews are essentially nailed** (48/50) and almost never mistaken for positive (0).
 - **3-star neutral is the failure.** It does **not** get its own class: **36 of the 50 neutral
@@ -107,21 +112,21 @@ Same 150 balanced reviews, two independent methods:
 
 | Emotion | LLM | NRC word list |
 |---|---|---|
-| anger | 57 | 8 |
-| joy | 43 | 17 |
-| sadness | 21 | 3 |
-| trust | 19 | 12 |
+| anger | 58 | 8 |
+| joy | 45 | 17 |
+| sadness | 20 | 3 |
+| trust | 18 | 12 |
 | anticipation | 1 | **60** |
-| disgust/fear/surprise | 9 | 10 |
+| disgust/fear/surprise | 8 | 10 |
 
-Where both assigned an emotion, they agreed only **20/110 = 18.2%**.
+Where both assigned an emotion, they agreed only **18/110 = 16.4%**.
 
 **Why they diverge.** The NRC word list is a *surface* method: it tokenizes the words and sums
 their lexicon emotions, ignoring meaning, context and negation. On gift-card reviews this floods
 the set with **anticipation (60)** because ordinary positive words (*gift, great, money, enjoy,
 give*) carry anticipation/joy/trust tags in the lexicon — even on *negative* reviews it returned
-anticipation far more often than anger. The **LLM reads meaning**: it returned **joy (43)** and
-**anger (57)** and, on the same texts, its emotions tracked the actual content (anger/sadness on
+anticipation far more often than anger. The **LLM reads meaning**: it returned **joy (45)** and
+**anger (58)** and, on the same texts, its emotions tracked the actual content (anger/sadness on
 negatives, joy on positives). So the two share vocabulary-level signals on strong/emotional words,
 but disagree anywhere the review's meaning depends on context, syntax or the disconnect between
 words and intent — which is most of real prose. The word list is a quick, cheap baseline; the LLM
@@ -137,8 +142,8 @@ is the far more useful signal.
   sample, `sentiment` vanished from the rows. *Fix:* build the sample with `groupby(...).sample()`
   (which keeps the column) and recover the label from the surviving name column.
 - **A "both have an emotion" check was miscounting because NaN is truthy in Python.** The NRC-vs-LLM
-  agreement first reported an inflated denominator (20/150); filtering with `.notna()` shows the
-  true figure is **20/110 = 18.2%**, and the dashboard now matches the saved output.
+  agreement first reported an inflated denominator (18/150); filtering with `.notna()` shows the
+  true figure is **18/110 = 16.4%**, and the dashboard now matches the saved output.
 - **Dashboard chart layout collapsed thin bars.** Mini bars could render at ~zero width via a
   CSS track/fill interaction. *Fix:* rebuilt bar rows as a flex `track` + `fill` so even tiny
   values show a visible sliver; verified the page in a real browser (KPI cards, 250 table rows,

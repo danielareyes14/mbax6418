@@ -23,8 +23,10 @@ import os
 import pandas as pd
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-OUTDIR = os.path.join(ROOT, "outputs")
-OUT_HTML = os.path.join(ROOT, "Sentiment_Emotion_Dashboard.html")
+OUTDIR = os.path.join(ROOT, "outputs")  # scratch: results parqueting llm_classify/nrc_emotion
+_OUT_DIR = os.path.join(ROOT, "dashboard")
+os.makedirs(_OUT_DIR, exist_ok=True)
+OUT_HTML = os.path.join(_OUT_DIR, "Sentiment_Emotion_Dashboard.html")
 
 CLASS_ORDER = ["NEGATIVE", "NEUTRAL", "POSITIVE"]
 
