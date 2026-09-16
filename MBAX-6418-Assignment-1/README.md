@@ -49,11 +49,9 @@ predictions — it is never shown to the model.
 
 ### 1. Why did the lopsided run look very accurate, and what did balancing change?
 
-The first **100 reviews in file order** are overwhelmingly high-rated: **93 POSITIVE vs. only
-7 NEGATIVE**. Against that set the LLM agreed with the rating **98/100 = 98%** — but that
-number is an artefact of the sample, not the model. A model that almost always "says positive"
-would look similarly great on data that is ~93% positive; the two real negatives were easy to
-catch and the imbalance made nearly every answer "correct":
+The first **100 reviews in file order** are rated highly at **93 positive and only 7 negative**.
+It measured agreement between the LLM's text-based sentiment prediction and the star rating
+derived from the review:
 
 ```
 true\pred     NEGATIVE  POSITIVE   hit%
@@ -72,10 +70,9 @@ NEUTRAL            36        7         7    14%   (n=50)
 POSITIVE            1        0        49    98%   (n=50)
 ```
 
-**What balancing revealed:** the headline accuracy dropped from 98% to 69.3% once the rare
-classes had an equal voice. Negative and positive are easy (96% / 98%), but the model is far
-weaker at neutral — the lopsided run looked excellent mostly because it barely asked the hard
-question.
+**What balancing revealed:** the accuracy dropped from 98% to 69.3% once we neutralized the
+ratings. The unbalanced data was the biggest weakness and shows how it struggled with the
+neutral categories.
 
 ### 2. Where do the model's mistakes go — which classes get confused with which?
 
