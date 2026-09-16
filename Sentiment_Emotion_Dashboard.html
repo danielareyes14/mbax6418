@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sentiment &amp; Emotion Classification of Amazon Reviews</title>
+<style>
+  :root{
+    --ink:#000000;          /* near-black base */
+    --surface:#120a0f;      /* black w/ pink cast */
+    --card:#1c1118;
+    --card2:#241620;
+    --line:#3a2230;
+    --pink:#ff5fa2;         /* primary hot pink */
+    --pink2:#d6336c;        /* deep pink */
+    --pink-soft:#7a4057;
+    --fg:#f6ecf1;           /* near-white w/ pink tint */
+    --muted:#c9a8b8;
+    --faint:#8f6f80;
+    --pos:#ff5fa2;          /* positive */
+    --neu:#d9759f;          /* neutral */
+    --neg:#f01a73;          /* negative (brighter magenta) */
+    --ok:#e9b7ff;           /* matched accent (soft lilac) */
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 600px at 85% -10%, rgba(214,51,108,.18), transparent 60%),
+      radial-gradient(900px 500px at -10% 0%, rgba(255,95,162,.10), transparent 55%),
+      var(--ink);
+    color:var(--fg);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:28px 24px 60px}
+
+  header{margin-bottom:26px;border-bottom:1px solid var(--line);padding-bottom:20px}
+  header h1{
+    font-size:clamp(1.6rem,3.2vw,2.4rem);margin:0;letter-spacing:-.02em;font-weight:800;
+    background:linear-gradient(90deg,#fff,var(--pink));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header .by{color:var(--pink2);font-weight:700;letter-spacing:.14em;text-transform:uppercase;
+            font-size:.8rem;margin-top:6px}
+  header .meta{color:var(--faint);font-size:.82rem;margin-top:10px}
+
+  /* ---- KPI cards ---- */
+  .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 16px 14px}
+  .kpi .lbl{color:var(--faint);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase;font-weight:600}
+  .kpi .num{font-size:1.9rem;font-weight:800;margin-top:6px;line-height:1}
+  .kpi .sub{color:var(--muted);font-size:.78rem;margin-top:6px}
+  .kpi.accent{background:linear-gradient(140deg,var(--card2),rgba(214,51,108,.25));border-color:var(--pink2)}
+  .num.acc{color:var(--pink)}
+
+  /* ---- layout columns ---- */
+  .cols{display:grid;grid-template-columns:340px 1fr;gap:20px;align-items:start}
+
+  /* ---- controls panel ---- */
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px}
+  .panel h2{font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;color:var(--pink);
+            margin:0 0 14px;font-weight:700}
+  .field{margin-bottom:14px}
+  .field label{display:block;font-size:.78rem;color:var(--muted);margin-bottom:6px;font-weight:600}
+  .seg{display:flex;background:var(--ink);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .seg button{flex:1;padding:8px 4px;background:transparent;border:none;color:var(--muted);
+              font-weight:600;font-size:.8rem;cursor:pointer;transition:.15s}
+  .seg button:hover{color:var(--fg)}
+  .seg button.active{background:var(--pink2);color:#fff}
+  .field select{
+    width:100%;padding:8px 10px;background:var(--ink);color:var(--fg);border:1px solid var(--line);
+    border-radius:10px;font-size:.85rem
+  }
+  .search input{
+    width:100%;padding:9px 12px;background:var(--ink);color:var(--fg);border:1px solid var(--line);
+    border-radius:10px;font-size:.85rem;outline:none}
+  .search input:focus{border-color:var(--pink2)}
+
+  /* ---- mini bars in panel ---- */
+  .dist .bar-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;font-size:.78rem}
+  .dist .bar-row .k{width:74px;color:var(--muted);text-align:right}
+  .dist .track{flex:1;height:9px;background:var(--ink);border-radius:5px;overflow:hidden}
+  .dist .fill{height:100%;border-radius:5px}
+  .dist .v{width:38px;color:var(--fg);font-variant-numeric:tabular-nums}
+
+  /* ---- mismatch pairs ---- */
+  .pairs{display:flex;flex-direction:column;gap:7px}
+  .pair{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:.8rem;
+        background:var(--ink);border:1px solid var(--line);border-radius:8px;padding:7px 10px}
+  .pair .arrow{color:var(--faint)}
+  .pair .cnt{background:var(--pink2);color:#fff;border-radius:20px;padding:1px 8px;font-size:.7rem;font-weight:700}
+
+  /* ---- table ---- */
+  .table-wrap{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .tbar{display:flex;align-items:center;justify-content:space-between;gap:12px;
+        padding:12px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+  .tbar .count{color:var(--muted);font-size:.85rem}
+  .tbar .count b{color:var(--pink)}
+  table{width:100%;border-collapse:collapse;font-size:.85rem}
+  thead th{
+    position:sticky;top:0;background:var(--card2);color:var(--pink);text-align:left;
+    padding:10px 12px;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+    border-bottom:1px solid var(--line);cursor:pointer;user-select:none;white-space:nowrap}
+  thead th:hover{color:#fff}
+  tbody td{padding:11px 12px;border-bottom:1px solid rgba(58,34,48,.6);vertical-align:top}
+  tbody tr:hover{background:rgba(255,95,162,.06)}
+  tbody tr:last-child td{border-bottom:none}
+  .stars{color:var(--pink);white-space:nowrap;letter-spacing:1px}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:700;
+        white-space:nowrap}
+  .pill.neg{background:rgba(240,26,115,.16);color:#ff7fb0}
+  .pill.neu{background:rgba(217,117,159,.16);color:#f0a8c2}
+  .pill.pos{background:rgba(255,95,162,.20);color:#ff9ec4}
+  .pill.emo{background:var(--ink);color:var(--muted);border:1px solid var(--line)}
+  .badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:.72rem;font-weight:800}
+  .badge.ok{background:#3d2341;color:#e9b7ff}
+  .badge.mis{background:#4a1226;color:#ff8fb8;border:1px solid #8f1f47}
+  .rev-title{font-weight:600;color:var(--fg);max-width:240px}
+  .rev-text{color:var(--muted);max-width:420px;display:-webkit-box;-webkit-line-clamp:2;
+            -webkit-box-orient:vertical;overflow:hidden}
+  .num{font-variant-numeric:tabular-nums;color:var(--muted)}
+  td .vchip{color:var(--faint);font-size:.7rem}
+  footer{margin-top:26px;color:var(--faint);font-size:.78rem;text-align:center}
+
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:var(--card2);border-radius:6px}
+  ::-webkit-scrollbar-track{background:var(--ink)}
+  @media(max-width:900px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <h1>Sentiment &amp; Emotion Classification of Amazon Reviews</h1>
+    <div class="by">Daniela Reyes</div>
+    <div class="meta">Amazon 2023 · Gift Cards category · predictions checked against star ratings</div>
+  </header>
+
+  <section class="kpis" id="kpis"></section>
+
+  <div class="cols">
+    <aside>
+      <div class="panel">
+        <h2>Filters</h2>
+        <div class="field">
+          <label>Prediction result</label>
+          <div class="seg" id="segMatch">
+            <button data-v="all" class="active">All</button>
+            <button data-v="match">✓ Matched</button>
+            <button data-v="mis">✗ Mismatched</button>
+          </div>
+        </div>
+        <div class="field">
+          <label>True sentiment (stars)</label>
+          <select id="selTrue">
+            <option value="all">All sentiments</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Predicted sentiment</label>
+          <select id="selPred">
+            <option value="all">All predictions</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Primary emotion</label>
+          <select id="selEmo">
+            <option value="all">All emotions</option>
+          </select>
+        </div>
+        <div class="field search">
+          <label>Search reviews</label>
+          <input id="search" type="text" placeholder="Search title or text…">
+        </div>
+        <button id="reset" class="seg" style="background:var(--ink);color:var(--pink2);width:100%;
+          border:1px solid var(--line);border-radius:10px;padding:9px;font-weight:700;cursor:pointer">Reset filters</button>
+      </div>
+
+      <div class="panel" style="margin-top:20px">
+        <h2>Emotion mix (predicted)</h2>
+        <div class="dist" id="emoDist"></div>
+      </div>
+
+      <div class="panel" style="margin-top:20px">
+        <h2>Where it goes wrong</h2>
+        <div class="pairs" id="mismatchPairs"></div>
+      </div>
+    </aside>
+
+    <section class="table-wrap">
+      <div class="tbar">
+        <div class="count">Showing <b id="showCount">0</b> of <span id="totalCount">0</span> reviews</div>
+      </div>
+      <div style="overflow:auto;max-height:72vh">
+        <table>
+          <thead>
+            <tr>
+              <th data-k="stars">Rating</th>
+              <th data-k="date">Date</th>
+              <th data-k="true">True</th>
+              <th data-k="pred">Predicted</th>
+              <th data-k="matched">Check</th>
+              <th data-k="emotion">Emotion</th>
+              <th data-k="title">Review</th>
+              <th data-k="confidence">Conf</th>
+              <th data-k="verified">Verified</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <footer>Daniela Reyes · Amazon 2023 Gift Cards · predictions checked against star ratings</footer>
+</div>
+
+<script>
+const D = {"stats": {"total": 99, "n_match": 62, "n_mismatch": 37, "accuracy": 0.6263, "acc_by_sent": {"negative": 0.697, "neutral": 0.1818, "positive": 1.0}, "emotion": {"joy": 64, "anger": 17, "sadness": 10, "fear": 4, "love": 3, "surprise": 1}, "emotion_total": 99, "sent_true": {"negative": 33, "positive": 33, "neutral": 33}, "sent_pred": {"positive": 46, "negative": 40, "neutral": 13}, "mismatch_pairs": [{"true": "negative", "pred": "neutral", "n": 7}, {"true": "negative", "pred": "positive", "n": 3}, {"true": "neutral", "pred": "negative", "n": 17}, {"true": "neutral", "pred": "positive", "n": 10}], "mean_conf": 0.8065, "mean_emo_conf": 0.8675}, "rows": [{"date": "2023-05-10", "stars": "★☆☆☆☆", "rating": 1, "title": "not useful to add to apple wallet", "text": "not useful to add to apple wallet. Bought this for my daughters apple wallet so she did not have to worry about losing a credit card. Complete waste of time", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.842, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.389, "verified": true, "helpful": 1}, {"date": "2023-04-20", "stars": "★★★★★", "rating": 5, "title": "Always on time", "text": "Always on time. Makes everything better when you see that item you want", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.966, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2023-03-18", "stars": "★☆☆☆☆", "rating": 1, "title": "loading from a debit card randomly doesn't work", "text": "loading from a debit card randomly doesn't work", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.69, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.608, "verified": true, "helpful": 0}, {"date": "2023-02-01", "stars": "★★☆☆☆", "rating": 2, "title": "Some of the card did not work when trying to enter them into my account. What do I do?", "text": "Some of the card did not work when trying to enter them into my account. What do I do?. I was told some of the cards did not work. WHAT DO I DO!", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.87, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.948, "verified": true, "helpful": 0}, {"date": "2023-01-02", "stars": "★☆☆☆☆", "rating": 1, "title": "It was something.", "text": "It was something.", "true": "negative", "pred": "positive", "matched": 0, "confidence": 0.541, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.887, "verified": true, "helpful": 1}, {"date": "2022-12-27", "stars": "★★★★★", "rating": 5, "title": "Great gift", "text": "Great gift. Many choices for use", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.977, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2022-12-02", "stars": "★★★☆☆", "rating": 3, "title": "Directions in wrong place", "text": "Directions in wrong place. Nice size and shape. Can easily be added to a holiday card. BUT … The directions for cashing in the gift card are written on the ugly, protective plastic wrapper. The wrapper is removed before giving the gift card so the recipient doesn’t get the directions!!! The directions for cashing-in the gift card should be written in the decorative cover — not on the disposable wrapper. AND … The directions are wrong!!! All you need to do is log onto your Amazon account and click on the “Gift Card” tab. Then select “redeem.” This information should be included on the card-sleeve.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.75, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.817, "verified": true, "helpful": 0}, {"date": "2022-08-28", "stars": "★★★☆☆", "rating": 3, "title": "Reload", "text": "Reload. For the most part it's pretty easy sometimes it takes a little while", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.725, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.999, "verified": true, "helpful": 0}, {"date": "2022-08-22", "stars": "★★★★★", "rating": 5, "title": "Nice little tin box", "text": "Nice little tin box. It comes with a nice little tin box which can be used for other stuff (i.e. card storage, etc)", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.938, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.906, "verified": true, "helpful": 0}, {"date": "2022-08-16", "stars": "★★★☆☆", "rating": 3, "title": "came damaged", "text": "came damaged. The gift card came dinged and damaged, no way was suitable for gift giving. It was shipped in a box so it was damaged before I even got it so poor quality control. I ended up using it myself and bought a new one at a local store in better shape for the gift.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.925, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.99, "verified": true, "helpful": 0}, {"date": "2022-07-31", "stars": "★★★☆☆", "rating": 3, "title": "Easy to use", "text": "Easy to use", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.774, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.987, "verified": true, "helpful": 0}, {"date": "2022-06-25", "stars": "★★★★★", "rating": 5, "title": "Reload plus bonus", "text": "Reload plus bonus. What’s not to like I used a visa gift card I got as a reward to reload.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.672, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.989, "verified": true, "helpful": 0}, {"date": "2022-05-16", "stars": "★★★★★", "rating": 5, "title": "Easy to give as a gift.", "text": "Easy to give as a gift.. Gas card.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.681, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.996, "verified": true, "helpful": 0}, {"date": "2022-05-02", "stars": "★★★☆☆", "rating": 3, "title": "Gift message not included.", "text": "Gift message not included.. I ordered this as a graduation gift and wrote my gift note to be included with the package and it was not included. Very disappointing", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.814, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.983, "verified": true, "helpful": 0}, {"date": "2022-03-28", "stars": "★★★★★", "rating": 5, "title": "Easy", "text": "Easy. Very easy to use", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.952, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.994, "verified": true, "helpful": 0}, {"date": "2022-03-05", "stars": "★☆☆☆☆", "rating": 1, "title": "Beware of scatching", "text": "Beware of scatching. Scratched off back and 2 letters or numbers were removed as well ..", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.577, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.92, "verified": true, "helpful": 0}, {"date": "2022-02-05", "stars": "★☆☆☆☆", "rating": 1, "title": "One card was redeemed.", "text": "One card was redeemed.. It's a shame but I ordered $250 worth of Uber Eats - $50 - 5 cards. When we went to use one of the cards, it was rejected because it said it had already been redeemed. I don't know how this could happen.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.826, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.945, "verified": true, "helpful": 8}, {"date": "2022-02-03", "stars": "★★★★★", "rating": 5, "title": "cute container", "text": "cute container. The cupcake holder for the gift card really added to the appeal of the card!", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.98, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2022-01-29", "stars": "★★★★★", "rating": 5, "title": "Classy Gift card in a holiday Box", "text": "Classy Gift card in a holiday Box. Perfect for holiday gift giving in a premium gift box.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.974, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.996, "verified": true, "helpful": 0}, {"date": "2022-01-21", "stars": "★★★★★", "rating": 5, "title": "Beautiful gold box", "text": "Beautiful gold box. [[VIDEOID:9098c02c1b448bb11a86ec1623915b01]] Makes gift card a gift", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.973, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.696, "verified": false, "helpful": 11}, {"date": "2022-01-17", "stars": "★☆☆☆☆", "rating": 1, "title": "Card did not work", "text": "Card did not work. Somehow the card number was taken and used when my son went to use it the card had a 0 balance and was used to purchase google play 7x in a row. I contacted Amazon customer service and said I would have a refund in 3-5 business days and it’s been over a week and no refund.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.822, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.89, "verified": true, "helpful": 4}, {"date": "2022-01-13", "stars": "★★★☆☆", "rating": 3, "title": "Good product at a good price. Recommend.", "text": "Good product at a good price. Recommend.", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.964, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2021-12-22", "stars": "★★☆☆☆", "rating": 2, "title": ".", "text": ".. Not packaged as described", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.554, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.765, "verified": true, "helpful": 0}, {"date": "2021-12-08", "stars": "★★★☆☆", "rating": 3, "title": "Quick Shipping but..", "text": "Quick Shipping but... I'm just frustrated that I couldn't add it to my Apple Pay wallet. It's not compatible in that way. There were times that my husband had the card and I needed it so it would have been super convenient if I were able to add it to my phone wallet.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.827, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.797, "verified": true, "helpful": 0}, {"date": "2021-09-12", "stars": "★★★☆☆", "rating": 3, "title": "Arrived heavily dent, feel embarrassed to gift away", "text": "Arrived heavily dent, feel embarrassed to gift away", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.83, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.999, "verified": false, "helpful": 0}, {"date": "2021-08-24", "stars": "★☆☆☆☆", "rating": 1, "title": "Complete scam", "text": "Complete scam. This was the worst gift card I bought for anyone. I got it for a friend and upon verifying it and buying a cup of coffee and the rest of the money was PayPaled to someone’s account!!! Be careful!! NEVER BUYING AGAIN AND WONT RECOMMEND TRIED CALLING THE NUMBER ON THE BACK AND EMAILING WITH NO USE", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.932, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.788, "verified": true, "helpful": 3}, {"date": "2021-07-26", "stars": "★★★☆☆", "rating": 3, "title": "Cannot use for all Amazon services!!", "text": "Cannot use for all Amazon services!!. This card was purchased for the purpose of paying my Prime subscription and Prime Video Channels monthly fee. Although I had enough on my gift card to cover the fees, my subscriptions were suspended because the fees must be paid by credit card or check. Really??? This doesn't make sense, but I confirmed it while chatting with an Amazon rep. I'd like to know the reasoning behind this decision.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.838, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.678, "verified": true, "helpful": 0}, {"date": "2021-06-27", "stars": "★★★★★", "rating": 5, "title": "Easy Simple and Enjoyable", "text": "Easy Simple and Enjoyable. It was great 👍", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.982, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2021-06-25", "stars": "★★★☆☆", "rating": 3, "title": "Lost $100.00", "text": "Lost $100.00. It did not work. I lost the money. Lost", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.927, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.993, "verified": false, "helpful": 0}, {"date": "2021-06-11", "stars": "★☆☆☆☆", "rating": 1, "title": "Not ok", "text": "Not ok. When it got to me after paying $105 there was no money on it", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.906, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.491, "verified": true, "helpful": 1}, {"date": "2021-06-03", "stars": "★★★★★", "rating": 5, "title": "Yummm", "text": "Yummm. Kids love Red Robin.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.987, "emotion": "love", "emotion_icon": "❤️", "emotion_conf": 0.566, "verified": true, "helpful": 0}, {"date": "2021-05-30", "stars": "★★☆☆☆", "rating": 2, "title": "Need to know who the gift is for and who it's from", "text": "Need to know who the gift is for and who it's from. A gift card is relatively easy gift to provide. The only real issue is to know who it's going to and who it's from. I recently sent my 6 year old grand niece a gift card. When I sent the gift card I marked it as a gift and added a note. There are multiple birthdays in this month, but unfortunately when the gift card arrived, no one was able to determine who the gift card was for or who it came from. Something so simple, but messed up. We asked her mom if they had received it and she said yes, but they too did not know who it was for or who sent it. In the end, the mystery was solved, but a little more attention to details would be nice.", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.7, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.607, "verified": false, "helpful": 0}, {"date": "2021-05-12", "stars": "★★★★★", "rating": 5, "title": "Love my knives", "text": "Love my knives. It is very sharp!", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.984, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.555, "verified": true, "helpful": 0}, {"date": "2021-05-09", "stars": "★☆☆☆☆", "rating": 1, "title": "getting out", "text": "getting out. i got into a nightmare. once you are in - you are in. it goes against my will. i want out and it seems impossible. enter at your own risk", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.759, "emotion": "fear", "emotion_icon": "😨", "emotion_conf": 0.906, "verified": false, "helpful": 0}, {"date": "2021-03-12", "stars": "★★★☆☆", "rating": 3, "title": "Giftable but not easy to add to wallet.", "text": "Giftable but not easy to add to wallet.. It is not easy to use. I cannot add to my Google wallet. So I would avoid it.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.885, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.853, "verified": true, "helpful": 1}, {"date": "2021-02-19", "stars": "★★★★★", "rating": 5, "title": "Lo recomiendo.", "text": "Lo recomiendo.. Excelente.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.724, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.467, "verified": true, "helpful": 0}, {"date": "2021-01-27", "stars": "★☆☆☆☆", "rating": 1, "title": "****BIG SCAM*** DONT BUY****", "text": "****BIG SCAM*** DONT BUY****. Not working at any of the stores mentioned. Cannot reach Customer Support. Gift card is not returnable at Amazon. BIG SCAM....stay away from buying this card.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.943, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.97, "verified": true, "helpful": 0}, {"date": "2021-01-15", "stars": "★★★★★", "rating": 5, "title": "Snow Flake Gift Box", "text": "Snow Flake Gift Box. The snow flake gift box (and the gift card inside!) got a big smile from my nephew when we opened it at Christmas.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.964, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.974, "verified": true, "helpful": 0}, {"date": "2020-12-14", "stars": "★☆☆☆☆", "rating": 1, "title": "VERY DISSAPOINTED IN AMAZON", "text": "VERY DISSAPOINTED IN AMAZON. Dont buy gift cards from Amazon. I tried all five of the cards and the 16 numbers if each if five cards COULD NOT BE SCANNED OR ENTERED. GIFT CARDS ARENT RETURNABLE TO AMAZON. The reveal card is great but the gift card doesnt work.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.893, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.989, "verified": true, "helpful": 1}, {"date": "2020-12-02", "stars": "★★☆☆☆", "rating": 2, "title": "Activation process is a nightmare", "text": "Activation process is a nightmare. I gave this as a gift and was embarrassed by how troublesome it was for the recipient to activate. It involved numerous phone calls and visits to the website before this could be used. Next time I am giving cash!", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.924, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.99, "verified": true, "helpful": 2}, {"date": "2020-10-17", "stars": "★☆☆☆☆", "rating": 1, "title": "Gift card that arrived had zero balance", "text": "Gift card that arrived had zero balance. When the recipient of this card attempted to use it there was zero balance on it and the gift card was not able to be used.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.707, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.829, "verified": true, "helpful": 0}, {"date": "2020-09-26", "stars": "★★★★★", "rating": 5, "title": "amount balance", "text": "amount balance. Easy to use", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.784, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.994, "verified": false, "helpful": 0}, {"date": "2020-08-10", "stars": "★★★☆☆", "rating": 3, "title": "I thought the $6.95 charge was excesive", "text": "I thought the $6.95 charge was excesive. The loading charge I thought was excessive", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.631, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.983, "verified": false, "helpful": 1}, {"date": "2020-07-29", "stars": "★☆☆☆☆", "rating": 1, "title": "Verify everything.", "text": "Verify everything.. Ordered a few of these last Christmas. One came loaded, the other did not. Niece brought the matter up at a family get together. You can imagine my embarrassment. Bezos got my money and I got a red face. Nice.......", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.722, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.976, "verified": true, "helpful": 0}, {"date": "2020-07-20", "stars": "★★★★★", "rating": 5, "title": "Good", "text": "Good", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.684, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.987, "verified": true, "helpful": 0}, {"date": "2020-04-30", "stars": "★★★☆☆", "rating": 3, "title": "Nice", "text": "Nice. Perfect as a gift for a graduate.", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.976, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.995, "verified": true, "helpful": 0}, {"date": "2020-04-29", "stars": "★★★☆☆", "rating": 3, "title": "Card did not come with the note I requested.", "text": "Card did not come with the note I requested.. Card did not come with the note I requested, and small corner of peel off section to reveal code is missing, not sure why. And the card does not indicate how much is on it. It is a gift for someone so all the above is very annoying, and not good customer service. Seems to be no way to check the value of the card (making sure it actually has the value stated loaded on it), before I give to the recipient. Amazon just seems to have option to load it on to my own account which I do not want to do.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.828, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.996, "verified": false, "helpful": 1}, {"date": "2020-04-20", "stars": "★☆☆☆☆", "rating": 1, "title": "ACTIVATE MY RECENT PURCHASE OF AMAZON GIFT CARD WORTH OF $2000", "text": "ACTIVATE MY RECENT PURCHASE OF AMAZON GIFT CARD WORTH OF $2000. I've an Amazon gift card which was ordered through my account. But I cannot use the Gift Card and it is saying to activate the Amazon Gift Card. Please activate my Gift Card.", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.589, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.932, "verified": true, "helpful": 1}, {"date": "2020-04-13", "stars": "★★★☆☆", "rating": 3, "title": "Not great", "text": "Not great", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.59, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.988, "verified": true, "helpful": 0}, {"date": "2020-02-05", "stars": "★★★★★", "rating": 5, "title": "Elegant box", "text": "Elegant box. Loved the gifty card box. Very elegant.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.98, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2020-01-17", "stars": "★★★★★", "rating": 5, "title": "Gift Card", "text": "Gift Card. We love Roosters!", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.978, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.561, "verified": true, "helpful": 0}, {"date": "2020-01-02", "stars": "★★★★★", "rating": 5, "title": "Very simple to use and it's very quick.", "text": "Very simple to use and it's very quick.. I wanted to reload on my account so I did. It was very quick and easy. I was thinking it would take more than 5 minutes, but it actually reloaded for less than 5 minutes, so they were right. I would totally use this again in the future when I need to reload on my account.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.962, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.988, "verified": true, "helpful": 0}, {"date": "2019-12-23", "stars": "★★★☆☆", "rating": 3, "title": "Box Review", "text": "Box Review. This review is for the gift box. It is beautiful but very hard to open. I ordered two of them and both had the same issue. You have to force them open and then it is very difficult to get the box to fit back together.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.743, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.984, "verified": false, "helpful": 0}, {"date": "2019-12-21", "stars": "★★☆☆☆", "rating": 2, "title": "If it is a gift maybe go into the store", "text": "If it is a gift maybe go into the store. The gift card works fine and the convenience was amazing. The condition of the gift card after it arrived....not so much. To use my daughters words, they dropped it on the ground and then walked on it all day, picked it up and shoved it in the packaging without even wiping it off.", "true": "negative", "pred": "positive", "matched": 0, "confidence": 0.544, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.544, "verified": true, "helpful": 2}, {"date": "2019-12-17", "stars": "★★★★★", "rating": 5, "title": "It worked!", "text": "It worked!. I tried to buy off microsoft store but it wasn't accepting my card. I bought this through amazon and it worked", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.576, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.994, "verified": true, "helpful": 0}, {"date": "2019-11-24", "stars": "★☆☆☆☆", "rating": 1, "title": "Never got", "text": "Never got", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.505, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.573, "verified": true, "helpful": 0}, {"date": "2019-11-08", "stars": "★★★★★", "rating": 5, "title": "New mom loves it", "text": "New mom loves it. It made a great impression and my friend remarked how adorable it looks.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.984, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2019-11-06", "stars": "★☆☆☆☆", "rating": 1, "title": "Money getter", "text": "Money getter. It’s difficult", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.466, "emotion": "fear", "emotion_icon": "😨", "emotion_conf": 0.462, "verified": true, "helpful": 0}, {"date": "2019-09-23", "stars": "★★★☆☆", "rating": 3, "title": "How to use and redeem", "text": "How to use and redeem. I do not understand how this works, confusing to me.", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.819, "emotion": "fear", "emotion_icon": "😨", "emotion_conf": 0.885, "verified": true, "helpful": 0}, {"date": "2019-08-10", "stars": "★★★★★", "rating": 5, "title": "Perfect gift", "text": "Perfect gift. This was a perfect gift for my granddaughter.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.988, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.995, "verified": true, "helpful": 0}, {"date": "2019-06-23", "stars": "★★★☆☆", "rating": 3, "title": "Quick", "text": "Quick. Reload quick", "true": "neutral", "pred": "neutral", "matched": 1, "confidence": 0.799, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.984, "verified": true, "helpful": 0}, {"date": "2019-06-20", "stars": "★☆☆☆☆", "rating": 1, "title": "Do not recommend", "text": "Do not recommend. The worst part is that there is no value on the card can’t tell how much each is", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.923, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.391, "verified": true, "helpful": 1}, {"date": "2019-05-03", "stars": "★☆☆☆☆", "rating": 1, "title": "Poor security.", "text": "Poor security.. I did not buy this card. My account was compromised. Gave one star for poor security on Amazon’s part.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.924, "emotion": "fear", "emotion_icon": "😨", "emotion_conf": 0.778, "verified": true, "helpful": 1}, {"date": "2019-02-05", "stars": "★★☆☆☆", "rating": 2, "title": "Poorly done UI interface, no way to undo", "text": "Poorly done UI interface, no way to undo. First of all, I really don't like that they default the value to $100. I accidentally ordered a $100 gift card because of this. Second, I tried adding a new card, and missed seeing the second 'Add card' button. (why should I have to click the words 'Add card' two times?) There is no way to cancel the order like other kinds of orders, since they are so happy to take the money it processes instantly. No confirmation page like when ordering off a shopping cart.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.904, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.983, "verified": true, "helpful": 1}, {"date": "2019-01-16", "stars": "★★★★★", "rating": 5, "title": "arrived fast!", "text": "arrived fast!. Always love a gift card!", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.986, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.989, "verified": true, "helpful": 0}, {"date": "2018-09-04", "stars": "★★★★★", "rating": 5, "title": "Five Stars", "text": "Five Stars. Love It!", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.982, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.979, "verified": true, "helpful": 0}, {"date": "2018-06-27", "stars": "★★★★★", "rating": 5, "title": "Such a great gift card tin", "text": "Such a great gift card tin", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.973, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2018-05-15", "stars": "★★☆☆☆", "rating": 2, "title": "I made a selection error but tried to change it ...", "text": "I made a selection error but tried to change it .... I made a selection error but tried to change it but unable to, so I was not able to take advantage of the offer.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.861, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.985, "verified": true, "helpful": 0}, {"date": "2018-02-11", "stars": "★★★☆☆", "rating": 3, "title": "Iffy use,...depends on situation, check fine print", "text": "Iffy use,...depends on situation, check fine print. Worked fine for gas. Did NOT work to reload my Sunpass.", "true": "neutral", "pred": "neutral", "matched": 1, "confidence": 0.581, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.962, "verified": true, "helpful": 0}, {"date": "2018-02-09", "stars": "★☆☆☆☆", "rating": 1, "title": "Issued unload and activated", "text": "Issued unload and activated. I am not impressed to say the least.... ordered 2 and one came not loaded or activated. Quite embarrassing when it was given as a gift. Should be a simple task to activate and send? Customer severe couldn't correct the problem", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.917, "emotion": "surprise", "emotion_icon": "😮", "emotion_conf": 0.964, "verified": true, "helpful": 2}, {"date": "2018-02-06", "stars": "★★★☆☆", "rating": 3, "title": "Old glue caused the card to detach", "text": "Old glue caused the card to detach. The Actual card came detached from the cardboard. Old glue maybe?", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.59, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.375, "verified": true, "helpful": 3}, {"date": "2018-01-08", "stars": "★★★☆☆", "rating": 3, "title": "Three Stars", "text": "Three Stars. ok as promised", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.728, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.994, "verified": true, "helpful": 0}, {"date": "2017-12-11", "stars": "★★★☆☆", "rating": 3, "title": "OK", "text": "OK", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.482, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.977, "verified": true, "helpful": 0}, {"date": "2017-11-09", "stars": "★★★★★", "rating": 5, "title": "Five Stars", "text": "Five Stars. Fast shipping and great for a gift idea.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.978, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2017-06-10", "stars": "★★★★★", "rating": 5, "title": "Just what I wanted", "text": "Just what I wanted. Came fast and as expected.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.952, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.993, "verified": false, "helpful": 0}, {"date": "2017-05-07", "stars": "★★★☆☆", "rating": 3, "title": "It is a card.", "text": "It is a card.. The presentation seemed kind of cheesy and Christmasy. Other than that, it is a card. Nothing too exciting or disappointing.", "true": "neutral", "pred": "neutral", "matched": 1, "confidence": 0.455, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2017-04-30", "stars": "★☆☆☆☆", "rating": 1, "title": "Payless is in Bankrupty - the gift card cannot be used online", "text": "Payless is in Bankrupty - the gift card cannot be used online. I purchased a $25.00 Payless Gift card for a relative as part of her Birthday gift. There was no attempt to use this card until approximately one month ago. My relative began searching for shoes online and found several pairs of shoes that she liked and was ready to order when she noticed that Payless did \"not\" have the option to use its gift card for a purchase. We felt that this was a glitch or technical issue with the website that went on for several weeks. During the middle of last week, my relative found 4 pairs of shoes that she wanted to order using the gift card and her Visa but she could not because there was \"still\" no option to enter Payless Gift Card information. My relative called customer service to find out if they could place a phone order for the online order. The answer was a clear \"No. 'She kept waiting and attempting until finally calling Customer Service yesterday. The representative was rude and did not offer any remedy for the situation. My relative went into Payless in our town 2X's attempting to find the same style without success except for one of the pairs of shoes which would have cost much more in the store. Online there was an initial sale plus she had a code to use for another 20% off. These discounts were not available in the brick and mortar store. It should not have been this difficult for Payless to turn this situation around. The Payless Gift Card clearly states that it can be used in store and online.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.767, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.424, "verified": true, "helpful": 0}, {"date": "2017-03-04", "stars": "★★★☆☆", "rating": 3, "title": "Three Stars", "text": "Three Stars. The amount purchased ia correct, but the card has swipe marks.", "true": "neutral", "pred": "neutral", "matched": 1, "confidence": 0.813, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.994, "verified": true, "helpful": 0}, {"date": "2017-02-16", "stars": "★★★☆☆", "rating": 3, "title": "Baby gift card", "text": "Baby gift card. I wish Amazon had a metal gift box for baby gift cards like they do for birthdays.", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.465, "emotion": "love", "emotion_icon": "❤️", "emotion_conf": 0.82, "verified": true, "helpful": 2}, {"date": "2017-02-12", "stars": "★★★★★", "rating": 5, "title": "Totally worth the $25", "text": "Totally worth the $25. You want me to write a review for this? Ok. I really wanted $26 but got the $25 I was told I would get if I spent $25 on it. Oh well. I guy can hope. The real question is if it worked at the restaurant or not. It was a gift for someone else so as far as I'm concerned, A+ on my end.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.666, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.986, "verified": true, "helpful": 1}, {"date": "2017-02-02", "stars": "★☆☆☆☆", "rating": 1, "title": "Card doesn't work", "text": "Card doesn't work. Issue with cards not working.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.768, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.741, "verified": true, "helpful": 6}, {"date": "2017-01-15", "stars": "★★★★★", "rating": 5, "title": "Perfect to give as gift", "text": "Perfect to give as gift. It's a gift card....,what more is there to say ?", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.933, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2016-12-22", "stars": "★★★☆☆", "rating": 3, "title": "Nice Product, but delivery problems", "text": "Nice Product, but delivery problems. Nice product, but delivery problems", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.888, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.973, "verified": true, "helpful": 0}, {"date": "2016-12-22", "stars": "★☆☆☆☆", "rating": 1, "title": "One Star", "text": "One Star. I never received these gift cards.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.788, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.566, "verified": true, "helpful": 0}, {"date": "2016-12-03", "stars": "★☆☆☆☆", "rating": 1, "title": "Paper gift card - boo", "text": "Paper gift card - boo. Holder is perfect. Gift card that came was paper with a sticker on the back. The claim code is permanently adhered to the back of the sticker. I guessed a few letters of it and contacted Amazon hoping they would credit the amount to my account. It is for $50 I certainly hope they give it to me!", "true": "negative", "pred": "positive", "matched": 0, "confidence": 0.939, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 2}, {"date": "2016-11-29", "stars": "★★★☆☆", "rating": 3, "title": "If you're a patient person who doesn't mind, confusing, complicated, & difficult transactions, these are the giftcards for you!", "text": "If you're a patient person who doesn't mind, confusing, complicated, & difficult transactions, these are the giftcards for you!. Be prepared that very few people at Hyatt know how these giftcards work. I've tried to use several giftcards at several locations on several different occasions, and each time, every Hyatt employee I've encountered (over the phone or in person) have to put me on hold and call corporate to figure out how to redeem them. I'm literally sitting on hold right now trying to book an advanced reservation with one now and they can't seem to figure out how to apply a $100 gift card to a $500 reservation. (15 minutes and counting). This is the third time I've tried to use it. The answer I just received is \"you can't use a gift card on an advanced booking rate\"----different answers with different hotels. When I call the same hotel later tonight, I will get a different answer. At a different hotel 2 months ago, they nearly lost their minds because first they said you couldn't use them in international hotels (wrong) and then they said you can only use one gift card per stay (also wrong---after calling corporate for 1 hour, they took them all). Long story short: you will experience resistance, confusion, and stress every time you try to use one---especially if you try to use more than one. One thing to keep in mind: The FULL balance of your giftcard has to be used---ie: if you have a $200 balance and your booking is only $100, you will not be able to use the giftcard. Your giftcard will pay for anything on your folio, however (ie: spa treatments, meals, room service, etc). Hope this helps.", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.467, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.893, "verified": false, "helpful": 1}, {"date": "2016-11-02", "stars": "★★★★★", "rating": 5, "title": "Great idea for a gift", "text": "Great idea for a gift. Lightning deal. Delicious ice cream combos made right before your eyes.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.985, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2016-11-01", "stars": "★★★☆☆", "rating": 3, "title": "Easy to give someone you care about", "text": "Easy to give someone you care about. Was a birthday present for my new son-in-law. He was really appreciated it.", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.974, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.92, "verified": true, "helpful": 0}, {"date": "2016-08-02", "stars": "★☆☆☆☆", "rating": 1, "title": "Told How To Pay", "text": "Told How To Pay. Buy e-books when an e-gift card is loaded to your account, and that is how you are going to be forced to pay for it. Doesn't matter if you have a bonus category credit card you'd prefer to use.", "true": "negative", "pred": "neutral", "matched": 0, "confidence": 0.713, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.509, "verified": true, "helpful": 4}, {"date": "2016-07-09", "stars": "★☆☆☆☆", "rating": 1, "title": "One Star", "text": "One Star. Showed up not loaded, Amazin could care less!", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.595, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.961, "verified": false, "helpful": 1}, {"date": "2016-06-15", "stars": "★★★☆☆", "rating": 3, "title": "Three Stars", "text": "Three Stars. like", "true": "neutral", "pred": "neutral", "matched": 1, "confidence": 0.794, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.973, "verified": true, "helpful": 0}, {"date": "2016-06-01", "stars": "★★★☆☆", "rating": 3, "title": "Easy to do but very slow.", "text": "Easy to do but very slow.. Worked well but it was very slow took several days to show the balance.", "true": "neutral", "pred": "positive", "matched": 0, "confidence": 0.515, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.958, "verified": true, "helpful": 2}, {"date": "2016-01-29", "stars": "★☆☆☆☆", "rating": 1, "title": "Not allowed to buy gift cards?", "text": "Not allowed to buy gift cards?. Pretty stupid. Nobody likes products that come with caveats.", "true": "negative", "pred": "negative", "matched": 1, "confidence": 0.923, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.632, "verified": true, "helpful": 0}, {"date": "2015-12-14", "stars": "★★★☆☆", "rating": 3, "title": "\" FROM WHO ??? \"", "text": "\" FROM WHO ??? \". No Message of To /From ! Left in Drive Way ! Process seems poorly set up !", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.844, "emotion": "sadness", "emotion_icon": "😢", "emotion_conf": 0.694, "verified": true, "helpful": 1}, {"date": "2015-02-14", "stars": "★★★★★", "rating": 5, "title": "Five Stars", "text": "Five Stars. Very easy to do", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.902, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.997, "verified": true, "helpful": 0}, {"date": "2014-12-22", "stars": "★★★★★", "rating": 5, "title": "Five Stars", "text": "Five Stars. Quickly received, no surprises", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.921, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.998, "verified": true, "helpful": 0}, {"date": "2013-10-09", "stars": "★★★☆☆", "rating": 3, "title": "gift card", "text": "gift card", "true": "neutral", "pred": "neutral", "matched": 1, "confidence": 0.699, "emotion": "love", "emotion_icon": "❤️", "emotion_conf": 0.569, "verified": true, "helpful": 0}, {"date": "2012-12-26", "stars": "★★★☆☆", "rating": 3, "title": "Where Was The Personal Message?", "text": "Where Was The Personal Message?. It is a gift card so there is not a lot to review there. However, it has you fill out a section for the personal note which I did on two cards that I bought, nothing showed up. What was the point in having me fill out that section if they were not going to bother putting the note on there?. I had the cards shipped to me and then sent them out. If they had gone straight to the giftee, they would not have had a clue who they were from. So those shipping to the receiptant beward of that! Other than that, they are cute cards and were shipped next day. They were much appreicated after I wrote the personal message myself!", "true": "neutral", "pred": "negative", "matched": 0, "confidence": 0.602, "emotion": "anger", "emotion_icon": "😠", "emotion_conf": 0.969, "verified": true, "helpful": 1}, {"date": "2012-01-27", "stars": "★★★★★", "rating": 5, "title": "Great gifts!", "text": "Great gifts!. My daughter's birthday was the 19th, so I bought her a $50 Amazon gift card. My birthday was the 23rd and she bought me a $50 Amazon gift card! We both love getting these as we are frequent customers of Amazon, they have everything you need.", "true": "positive", "pred": "positive", "matched": 1, "confidence": 0.989, "emotion": "joy", "emotion_icon": "😄", "emotion_conf": 0.988, "verified": false, "helpful": 0}]};
+
+const SENT_FILL = {negative:'var(--neg)', neutral:'var(--neu)', positive:'var(--pos)'};
+const EMO_COLOR = {joy:'#ff5fa2', love:'#e268a8', surprise:'#c9a3d6', anger:'#f01a73',
+                   sadness:'#7a6db5', fear:'#a06bb5', neutral:'#8f6f80'};
+
+let state = {match:'all', true:'all', pred:'all', emo:'all', q:'', sort:{k:'stars',d:1}};
+
+/* ---------- init ---------- */
+function init(){
+  buildKpis();
+  fillSelect('selTrue', Object.keys(D.stats.sent_true));
+  fillSelect('selPred', Object.keys(D.stats.sent_pred));
+  fillSelect('selEmo', Object.keys(D.stats.emotion));
+  buildEmoDist();
+  buildMismatchPairs();
+  document.getElementById('totalCount').textContent = D.stats.total;
+  bindEvents();
+  render();
+}
+
+function fillSelect(id, keys){
+  const s = document.getElementById(id);
+  keys.forEach(k=>{
+    const o = document.createElement('option'); o.value=k; o.textContent=k[0].toUpperCase()+k.slice(1);
+    s.appendChild(o);
+  });
+}
+
+function buildKpis(){
+  const s = D.stats;
+  const sentLabels = {negative:'Negative(1-2★)', neutral:'Neutral(3★)', positive:'Positive(4-5★)'};
+  const cards = [
+    {lbl:'Reviews', num:s.total, cls:'', sub:'stratified sample'},
+    {lbl:'Accuracy', num:(s.accuracy*100).toFixed(1)+'%', cls:'num acc', sub:'model vs star rating'},
+    {lbl:'Matched', num:s.n_match, cls:'', sub:'prediction == rating'},
+    {lbl:'Mismatched', num:s.n_mismatch, cls:'', sub:'check failed'},
+    {lbl:'Neutral acc', num:(s.acc_by_sent.neutral*100??0).toFixed(0)+'%', cls:'', sub:'3★ recall'},
+  ];
+  document.getElementById('kpis').innerHTML = cards.map(c=>`
+    <div class="kpi ${c.cls?'accent':''}"><div class="lbl">${c.lbl}</div><div class="num ${c.cls}">${c.num}</div><div class="sub">${c.sub}</div></div>`).join('');
+}
+
+function buildEmoDist(){
+  const s = D.stats;
+  const max = Math.max(...Object.values(s.emotion));
+  document.getElementById('emoDist').innerHTML = Object.entries(s.emotion)
+    .sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+      const pct = s.emotion_total? (v/s.emotion_total*100).toFixed(1):'0';
+      return `<div class="bar-row"><div class="k">${k}</div>
+        <div class="track"><div class="fill" style="width:${v/max*100}%;background:${EMO_COLOR[k]||'var(--pink)'}"></div></div>
+        <div class="v">${v} · ${pct}%</div></div>`;
+    }).join('');
+}
+
+function buildMismatchPairs(){
+  const pairs = D.stats.mismatch_pairs;
+  if(!pairs.length){document.getElementById('mismatchPairs').innerHTML='<div style="color:var(--muted);font-size:.8rem">No mismatches on this data.</div>';return;}
+  document.getElementById('mismatchPairs').innerHTML = pairs.map(p=>`
+    <div class="pair"><span class="pill ${p.true}">${p.true}</span>
+      <span class="arrow">→</span><span class="pill ${p.pred}">${p.pred}</span>
+      <span class="cnt">${p.n}</span></div>`).join('');
+}
+
+/* ---------- filtering ---------- */
+function matches(r){
+  if(state.match==='match' && r.matched!==1) return false;
+  if(state.match==='mis'  && r.matched!==0) return false;
+  if(state.true!=='all' && r.true!==state.true) return false;
+  if(state.pred!=='all' && r.pred!==state.pred) return false;
+  if(state.emo!=='all' && r.emotion!==state.emo) return false;
+  const q = state.q.trim().toLowerCase();
+  if(q && !(r.title.toLowerCase().includes(q) || r.text.toLowerCase().includes(q))) return false;
+  return true;
+}
+
+function render(){
+  let rows = D.rows.filter(matches);
+  // sort
+  const {k,d} = state.sort;
+  rows = rows.sort((a,b)=>{
+    let x=a[k], y=b[k];
+    if(k==='date'||k==='title'){ x=String(x); y=String(y); }
+    if(typeof x==='string' && typeof y==='string'){ const r= x.localeCompare(y); return r*d; }
+    return (x-y)*d;
+  });
+  document.getElementById('showCount').textContent = rows.length;
+  const tbody = document.getElementById('tbody');
+  if(!rows.length){
+    tbody.innerHTML = `<tr><td colspan="9" style="color:var(--faint);text-align:center;padding:30px">No reviews match these filters.</td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(r=>`
+    <tr>
+      <td class="stars" title="${r.rating}/5">${r.stars}</td>
+      <td class="num">${r.date}</td>
+      <td><span class="pill ${r.true}">${r.true}</span></td>
+      <td><span class="pill ${r.pred}">${r.pred}</span></td>
+      <td><span class="badge ${r.matched?'ok':'mis'}">${r.matched?'✓ matched':'✗ mismatch'}</span></td>
+      <td><span class="pill emo" title="conf ${(r.emotion_conf*100).toFixed(0)}%">${r.emotion_icon} ${r.emotion}</span></td>
+      <td><div class="rev-title">${esc(r.title)||'—'}</div><div class="rev-text">${esc(r.text)}</div></td>
+      <td class="num">${(r.confidence*100).toFixed(0)}%</td>
+      <td class="vchip">${r.verified?'✓':'—'}</td>
+    </tr>`).join('');
+}
+function esc(s){return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+
+/* ---------- events ---------- */
+function bindEvents(){
+  document.querySelectorAll('#segMatch button').forEach(b=>{
+    b.onclick=()=>{document.querySelectorAll('#segMatch button').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active'); state.match=b.dataset.v; render();};
+  });
+  document.getElementById('selTrue').onchange=e=>{state.true=e.target.value;render();};
+  document.getElementById('selPred').onchange=e=>{state.pred=e.target.value;render();};
+  document.getElementById('selEmo').onchange=e=>{state.emo=e.target.value;render();};
+  document.getElementById('search').oninput=e=>{state.q=e.target.value;render();};
+  document.getElementById('reset').onclick=reset;
+  document.querySelectorAll('th').forEach(th=>{
+    th.onclick=()=>{
+      const k=th.dataset.k;
+      if(state.sort.k===k) state.sort.d*=-1; else state.sort={k,d:1};
+      document.querySelectorAll('th').forEach(x=>x.textContent=x.textContent.replace(/ ?[▲▼]$/,''));
+      th.textContent += (state.sort.d===1?' ▲':' ▼');
+      render();
+    };
+  });
+}
+function reset(){
+  state={match:'all',true:'all',pred:'all',emo:'all',q:'',sort:{k:'stars',d:1}};
+  document.querySelectorAll('#segMatch button').forEach(x=>x.classList.toggle('active',x.dataset.v==='all'));
+  ['selTrue','selPred','selEmo'].forEach(id=>document.getElementById(id).value='all');
+  document.getElementById('search').value='';
+  document.querySelectorAll('th').forEach(x=>x.textContent=x.textContent.replace(/ ?[▲▼]$/,''));
+  render();
+}
+
+init();
+</script>
+</body>
+</html>
