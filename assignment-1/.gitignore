@@ -1,0 +1,20 @@
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Python caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Hugging Face model caches
+.cache/
+models--*/
+
+# Hugging Face default cache dir
+~/.cache/huggingface/
+
+# OS
+.DS_Store
+Thumbs.db
