@@ -15,7 +15,8 @@ committed — results in this report are reproducible from the scripts below).
 
 **Approach.** Classification and emotion are done by an LLM through an OpenAI-compatible
 endpoint (Hermes Agent's configured provider). A structured prompt (`prompt.py`) feeds the
-model the review's **title and text only** and asks it to return a strict JSON answer
+model the review's **title and text only**. The **binary** sentiment prompt returns a single
+word (`POSITIVE`/`NEGATIVE`); the **three-class** prompt returns a strict JSON answer
 (`sentiment` + `emotion`). The star rating is applied **afterward**, purely to score the
 predictions — it is never shown to the model. Emotion is also derived a second way from an
 **NRC emotion word list** (`nrc_emotion.py`), with no model calls.

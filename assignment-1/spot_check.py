@@ -1,31 +1,31 @@
-"""Step 1 spot-check: obvious positive/negative/neutral short reviews."""
+"""Live check: new binary prompt against the LLM endpoint (a few examples)."""
 import openai
 
-from prompt import SYSTEM_PROMPT, build_user_prompt, parse_llm_response, NRC_EMOTIONS
+from prompt import build_binary_prompt, parse_llm_response, SYSTEM_PROMPT
 
 client = openai.OpenAI(base_url="http://dobolyi.com:9000/v1", api_key="6418")
 model = "DeepSeek-V4-Flash-0731"
 
 cases = [
-    # (title, text, expected sentiment)
-    ("Great gift", "Having Amazon money is always good.", "POSITIVE"),
+    ("New mom loves it", "Didn't have to go anywhere got it the next day", "POSITIVE"),
     ("Card never arrives", "I ordered last month and still nothing came.", "NEGATIVE"),
     ("Total scam", "The card was already redeemed when I got it. Do not buy!", "NEGATIVE"),
-    ("Perfect", "Exactly what I wanted, worked instantly.", "POSITIVE"),
-    ("Okay", "It's fine, nothing special about it.", "NEUTRAL"),
+    ("Great gift", "Having Amazon money is always good.", "POSITIVE"),
     ("Directions confusing", "The wallet setup is confusing and took a long time.", "NEGATIVE"),
 ]
 
 for title, text, expected in cases:
-    user_msg = build_user_prompt(title, text, mode="three")
+    q = build_binary_prompt(title, text)
     resp = client.chat.completions.create(
         model=model,
-        messages=[{"role": "system", "content": SYSTEM_PROMPT},
-                  {"role": "user", "content": user_msg}],
-        temperature=0, max_tokens=1024,
+        messages=[{"role": "user", "content": q}],   # user-only, no system
+        temperature=0, max_tokens=64,
     )
     content = (resp.choices[0].message.content or "").strip()
-    sent, emo = parse_llm_response(content, "three", valid_emotions=NRC_EMOTIONS)
+    sent, _ = parse_llm_response(content, "binary")
     ok = "✓" if sent == expected else "✗"
-    print(f"{ok} expected={expected:<8} llm={str(sent):<8} emotion={str(emo):<6} "
-          f"| {title[:30]}")
+    print(f"{ok} raw={content!r:28} parsed={sent!s:<8} expected={expected} | {title}")
+    # Show whether the model answered with extra prose or just the word.
+    bare = content.strip().upper() in ("POSITIVE", "NEGATIVE")
+    if not bare:
+        print(f"   (model added prose; parser recovered {sent})")

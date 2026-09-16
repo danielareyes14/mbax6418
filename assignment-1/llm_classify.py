@@ -54,14 +54,18 @@ def true_from_rating(rating, mode):
 
 
 def call_llm(client, title, text, mode):
+    # Binary mode uses the fixed, self-contained sentiment prompt verbatim (no
+    # extra system prompt, which would ask for JSON and fight "return one
+    # word"). Three-class mode attaches the JSON-oriented system prompt.
+    user_content = build_user_prompt(title, text, mode)
+    messages = ([{"role": "user", "content": user_content}] if mode == "binary"
+                else [{"role": "system", "content": SYSTEM_PROMPT},
+                      {"role": "user", "content": user_content}])
     resp = client.chat.completions.create(
         model=MODEL,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_user_prompt(title, text, mode)},
-        ],
+        messages=messages,
         temperature=0,
-        max_tokens=1024,
+        max_tokens=256 if mode == "binary" else 1024,
     )
     msg = resp.choices[0].message
     content = (msg.content or "").strip()
