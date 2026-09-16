@@ -90,7 +90,7 @@ From the balanced matrix above (rows = true class from the rating, cols = what t
   correct. The direction is clear — **neutral overwhelmingly collapses into negative**, not the
   other way round. Only 2 negatives (4%) were pulled up to neutral, so the confusion is almost
   entirely one-way (neutral → negative).
-- **Positive is very well-caught** (48/50, as 3-box shows), with just 2 strayed.
+- **Positive is very well-caught** (49/50, as the 3-box shows), with just 1 strayed.
 
 So the model's weakness is specifically **the 3-star middle**: it "reads" a mildly negative or
 flavourless 3-star review as disliking it.
